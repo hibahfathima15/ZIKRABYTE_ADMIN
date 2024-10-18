@@ -10,6 +10,7 @@ const HomepageProduct = () => {
     title: "",
     description: "",
     initial: "left",
+    slug: "",
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -30,12 +31,32 @@ const HomepageProduct = () => {
     }
   };
 
+  // Generate a slug from the title
+  const generateSlug = (title) => {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "") // Remove non-word characters
+      .replace(/\s+/g, "-"); // Replace spaces with hyphens
+  };
+
   // Handle form input change
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    // If the title is being changed, auto-generate the slug
+    if (name === "title") {
+      setFormData({
+        ...formData,
+        title: value,
+        slug: generateSlug(value), // Auto-generate slug based on title
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
 
   // Handle image selection
@@ -54,6 +75,7 @@ const HomepageProduct = () => {
     data.append("title", formData.title);
     data.append("description", formData.description);
     data.append("initial", formData.initial);
+    data.append("slug", formData.slug);
     if (selectedImage) data.append("image", selectedImage);
 
     try {
@@ -112,6 +134,7 @@ const HomepageProduct = () => {
       title: project.title,
       description: project.description,
       initial: project.initial,
+      slug: project.slug || "",
     });
     setEditingProjectId(project._id);
   };
@@ -123,6 +146,7 @@ const HomepageProduct = () => {
       title: "",
       description: "",
       initial: "left",
+      slug: "",
     });
     setSelectedImage(null);
     setEditingProjectId(null);
@@ -209,6 +233,23 @@ const HomepageProduct = () => {
 
         <div>
           <label
+            htmlFor="slug"
+            className="block text-gray-700 text-sm font-bold mb-2"
+          >
+            Slug:
+          </label>
+          <input
+            type="text"
+            name="slug"
+            value={formData.slug}
+            onChange={handleChange}
+            className="shadow appearance-none border rounded w-full py-3 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            readOnly
+          />
+        </div>
+
+        <div>
+          <label
             htmlFor="image"
             className="block text-gray-700 text-sm font-bold mb-2"
           >
@@ -240,17 +281,18 @@ const HomepageProduct = () => {
               <img
                 src={project.image}
                 alt={project.title}
-                className="w-full h-32 object-cover rounded"
+                className="w-full h-40 object-cover rounded-md mb-4"
               />
-              <h3 className="text-lg font-bold mt-2">{project.title}</h3>
-              <p>{project.description}</p>
-              <p className="text-sm text-gray-600">
+              <h3 className="text-xl font-bold">{project.title}</h3>
+              <p className="text-gray-600 mb-2">
                 Tags: {project.tags.join(", ")}
               </p>
-              <div className="flex justify-between mt-4">
+              <p className="text-gray-600 mb-2">Slug: {project.slug}</p>
+              <p className="text-gray-600 mb-4">{project.description}</p>
+              <div className="flex justify-between">
                 <button
                   onClick={() => handleEdit(project)}
-                  className="bg-yellow-500 text-white px-4 py-2 rounded"
+                  className="bg-green-500 text-white px-4 py-2 rounded"
                 >
                   Edit
                 </button>
