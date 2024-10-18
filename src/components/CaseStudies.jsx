@@ -9,6 +9,7 @@ const CaseStudies = () => {
   const [selectedCaseStudy, setSelectedCaseStudy] = useState(null);
   const [formData, setFormData] = useState({
     projectId: "",
+    slug: "",
     caseBanner: { targetWord: "", description: "", imageUrl: null },
     challenge: { title: "", description: "", tags: "" },
     explorePage: { image: null },
@@ -61,7 +62,8 @@ const CaseStudies = () => {
     setFormData((prev) => {
       const newState = { ...prev };
       if (section === "outcome" && field === "images") {
-        newState[section][field][index] = files[0] || prev[section][field][index];
+        newState[section][field][index] =
+          files[0] || prev[section][field][index];
       } else if (files) {
         newState[section][field] = files[0];
       } else {
@@ -77,6 +79,7 @@ const CaseStudies = () => {
 
     let caseStudyData = {
       projectId: formData.projectId,
+      slug: formData.slug,
       caseBanner: {
         targetWord: formData.caseBanner.targetWord,
         description: formData.caseBanner.description,
@@ -113,7 +116,10 @@ const CaseStudies = () => {
     if (formData.explorePage.image instanceof File)
       data.append("explorePage.image", formData.explorePage.image);
     if (formData.rebrandingWithImage.image instanceof File)
-      data.append("rebrandingWithImage.image", formData.rebrandingWithImage.image);
+      data.append(
+        "rebrandingWithImage.image",
+        formData.rebrandingWithImage.image
+      );
     formData.outcome.images.forEach((image, index) => {
       if (image instanceof File) data.append(`outcome.images`, image);
     });
@@ -130,13 +136,24 @@ const CaseStudies = () => {
         );
         Swal.fire("Success", "Case Study updated successfully!", "success");
       } else {
-        // ... (create new case study code remains the same)
+        response = await axios.post(
+          `${baseUrl}/api/case-studies/case-studies`,
+          data,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+        Swal.fire("Success", "Case Study created successfully!", "success");
       }
       resetForm();
       fetchCaseStudies();
     } catch (error) {
       console.error("Error saving case study:", error);
-      Swal.fire("Error", error.response?.data?.message || "Failed to save case study", "error");
+      Swal.fire(
+        "Error",
+        error.response?.data?.message || "Failed to save case study",
+        "error"
+      );
     }
   };
 
@@ -144,6 +161,7 @@ const CaseStudies = () => {
     setSelectedCaseStudy(caseStudy);
     setFormData({
       projectId: caseStudy.projectId,
+      slug: caseStudy.slug,
       caseBanner: {
         targetWord: caseStudy.caseBanner?.targetWord || "",
         description: caseStudy.caseBanner?.description || "",
@@ -154,8 +172,8 @@ const CaseStudies = () => {
         description: caseStudy.challenge?.description || "",
         tags: caseStudy.challenge?.tags || "",
       },
-      explorePage: { 
-        image: caseStudy.explorePage?.image || null 
+      explorePage: {
+        image: caseStudy.explorePage?.image || null,
       },
       rebranding: {
         sectionTitle: caseStudy.rebranding?.sectionTitle || "",
@@ -177,8 +195,6 @@ const CaseStudies = () => {
     });
   };
 
-
-
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -193,24 +209,11 @@ const CaseStudies = () => {
     if (result.isConfirmed) {
       try {
         await axios.delete(`${baseUrl}/api/case-studies/case-studies/${id}`);
-        Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Case study has been deleted.",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true,
-        });
+        Swal.fire("Deleted!", "The case study has been deleted.", "success");
         fetchCaseStudies();
       } catch (error) {
         console.error("Error deleting case study:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Oops...",
-          text: "Failed to delete case study",
-        });
+        Swal.fire("Error", "Failed to delete the case study", "error");
       }
     }
   };
@@ -219,6 +222,7 @@ const CaseStudies = () => {
     setSelectedCaseStudy(null);
     setFormData({
       projectId: "",
+      slug: "",
       caseBanner: { targetWord: "", description: "", imageUrl: null },
       challenge: { title: "", description: "", tags: "" },
       explorePage: { image: null },
@@ -250,6 +254,19 @@ const CaseStudies = () => {
     });
   };
 
+  const handleProjectChange = (e) => {
+    const selectedProjectId = e.target.value;
+    const selectedProject = projects.find(
+      (project) => project._id === selectedProjectId
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      projectId: selectedProjectId,
+      slug: selectedProject ? selectedProject.slug : "", // Autofill slug based on selected project
+    }));
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Case Studies Management</h1>
@@ -263,7 +280,7 @@ const CaseStudies = () => {
               <h3 className="text-xl font-semibold mb-2">
                 {study.caseBanner.targetWord}
               </h3>
-              <p className="text-gray-600 mb-4">{study.challenge.title}</p>
+              <p className="text-gray-600 mb-4">{study.slug}</p>
               <div className="flex justify-between">
                 <button
                   onClick={() => handleEdit(study)}
@@ -303,9 +320,7 @@ const CaseStudies = () => {
           <select
             id="project"
             value={formData.projectId}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, projectId: e.target.value }))
-            }
+            onChange={handleProjectChange}
             className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           >
             <option value="">Select a project</option>
@@ -315,6 +330,24 @@ const CaseStudies = () => {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Slug Field */}
+        <div className="mb-4">
+          <label
+            className="block text-gray-700 text-sm font-bold mb-2"
+            htmlFor="slug"
+          >
+            Slug
+          </label>
+          <input
+            id="slug"
+            type="text"
+            placeholder="Slug"
+            value={formData.slug} // Use the slug from form data
+            readOnly // Optional: Set to readOnly if you want to prevent editing
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          />
         </div>
 
         {/* Case Banner Section */}

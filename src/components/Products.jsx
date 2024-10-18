@@ -8,20 +8,25 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [image, setImage] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null);
+  const [slugs, setSlugs] = useState([]); // State for slugs
+  const [selectedSlug, setSelectedSlug] = useState(""); // State for selected slug
+  const [editingSlug, setEditingSlug] = useState(""); // State for editing slug
 
-  // Fetch all products
+  // Fetch all products and slugs
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsAndSlugs = async () => {
       try {
-        const response = await axios.get(
-          `${baseUrl}/api/products/get-all-products`
-        );
-        setProducts(response.data);
+        const [productsResponse, slugsResponse] = await Promise.all([
+          axios.get(`${baseUrl}/api/products/get-all-products`),
+          axios.get(`${baseUrl}/api/homepage-project/projects`), // Fetch slugs here
+        ]);
+        setProducts(productsResponse.data);
+        setSlugs(slugsResponse.data.map((project) => project.slug)); // Extract slugs
       } catch (error) {
-        console.error("Error fetching products", error);
+        console.error("Error fetching data", error);
       }
     };
-    fetchProducts();
+    fetchProductsAndSlugs();
   }, [baseUrl]);
 
   // Handle image selection
@@ -36,12 +41,14 @@ const Products = () => {
     if (!image) return;
     const formData = new FormData();
     formData.append("image", image);
+    formData.append("slug", selectedSlug); // Include the selected slug
 
     try {
       await axios.post(`${baseUrl}/api/products/create-products`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setImage(null);
+      setSelectedSlug(""); // Reset selected slug
 
       Swal.fire({
         title: "Success",
@@ -71,7 +78,7 @@ const Products = () => {
       if (result.isConfirmed) {
         try {
           await axios.delete(`${baseUrl}/api/products/delete-product/${id}`, {
-            data: { publicId }, // Send publicId for cloudinary deletion
+            data: { publicId }, // Send publicId for Cloudinary deletion
           });
           setProducts(products.filter((product) => product._id !== id));
           Swal.fire("Deleted!", "Your product has been deleted.", "success");
@@ -85,15 +92,25 @@ const Products = () => {
 
   // Edit product
   const handleEdit = async (id) => {
-    if (!image) return;
+    if (!image && !editingSlug) return;
     const formData = new FormData();
-    formData.append("image", image);
+
+    // Append new image if provided
+    if (image) {
+      formData.append("image", image);
+    }
+
+    // Append new slug if provided
+    if (editingSlug) {
+      formData.append("slug", editingSlug);
+    }
 
     try {
       await axios.put(`${baseUrl}/api/products/edit-product/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setEditingProductId(null);
+      setEditingSlug(""); // Reset editing slug
 
       Swal.fire({
         title: "Success",
@@ -116,12 +133,27 @@ const Products = () => {
       </h1>
 
       {/* Form to upload new product */}
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col">
         <h2 className="text-xl font-semibold">Upload New Product</h2>
+        <select
+          value={selectedSlug}
+          onChange={(e) => setSelectedSlug(e.target.value)} // Set selected slug
+          className="border border-gray-300 p-2 rounded mb-4 mt-2"
+          required
+        >
+          <option value="" disabled>
+            Select a slug
+          </option>
+          {slugs.map((slug, index) => (
+            <option key={index} value={slug}>
+              {slug}
+            </option>
+          ))}
+        </select>
         <input
           type="file"
           onChange={handleImageChange}
-          className="border border-gray-300 p-2 rounded"
+          className="border border-gray-300 p-2 rounded mb-4"
         />
         <button
           onClick={handleUpload}
@@ -144,9 +176,13 @@ const Products = () => {
                 alt="Product"
                 className="w-full h-64 object-cover mb-4"
               />
+              <h3 className="text-lg font-semibold mb-2">{product.slug}</h3>
               <div className="flex justify-between items-center">
                 <button
-                  onClick={() => setEditingProductId(product._id)}
+                  onClick={() => {
+                    setEditingProductId(product._id);
+                    setEditingSlug(product.slug); // Pre-fill the slug for editing
+                  }}
                   className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
                 >
                   Edit
@@ -162,10 +198,25 @@ const Products = () => {
               {/* Editing Section */}
               {editingProductId === product._id && (
                 <div className="mt-4">
+                  <select
+                    value={editingSlug}
+                    onChange={(e) => setEditingSlug(e.target.value)} // Allow slug editing via dropdown
+                    className="border border-gray-300 p-2 rounded mb-4 w-full"
+                    required
+                  >
+                    <option value="" disabled>
+                      Select a new slug
+                    </option>
+                    {slugs.map((slug, index) => (
+                      <option key={index} value={slug}>
+                        {slug}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="file"
                     onChange={handleImageChange}
-                    className="border border-gray-300 p-2 rounded mb-4"
+                    className="border border-gray-300 p-2 rounded mb-4 w-full"
                   />
                   <button
                     onClick={() => handleEdit(product._id)}
